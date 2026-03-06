@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Login Generator</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background: #f9f9f9;
+  }
+  h1 { color: #333; }
+  input, button { padding: 10px; margin: 5px 0; }
+  button { cursor: pointer; background: #4CAF50; color: white; border: none; }
+  button:hover { background: #45a049; }
+</style>
+</head>
+<body>
+  <h1>Student Login & Password Generator</h1>
+  <input type="file" id="fileInput" accept=".xlsx, .xls"/>
+  <br/>
+  <button id="generateBtn">Generate Logins & Passwords</button>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script>
+    function generateLogin(name, className) {
+      const parts = name.split(' ');
+      const firstName = parts[1] ? parts[1].toLowerCase() : parts[0].toLowerCase();
+      const lastName = parts[0].toLowerCase();
+      const classClean = className.replace(/-/g,'').toLowerCase();
+      const randNum = Math.floor(Math.random()*90+10); // 2-digit random
+      return firstName + lastName + classClean + randNum;
+    }
+
+    function generatePassword(name, className) {
+      const parts = name.split(' ');
+      const firstName = parts[1] ? parts[1].toLowerCase() : parts[0].toLowerCase();
+      const lastName = parts[0].toLowerCase();
+      const classNum = className.replace(/\D/g,'');
+      const randChars = Array.from({length:3}, ()=> {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        return chars.charAt(Math.floor(Math.random()*chars.length));
+      }).join('');
+      return classNum + randChars + firstName.slice(0,3) + lastName.slice(0,2);
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      const fileInput = document.getElementById('fileInput');
+      if(!fileInput.files.length){
+        alert('Please select an Excel file first!');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type:'array'});
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header:1});
+        
+        // Add headers for new columns if not present
+        if(jsonData[0].length < 2) { alert('File must have at least two columns (Class, Name)'); return; }
+        jsonData[0].push('Login', 'Password');
+
+        // Generate logins and passwords
+        for(let i=1; i<jsonData.length; i++){
+          const className = jsonData[i][0];
+          const fullName = jsonData[i][1];
+          jsonData[i].push(generateLogin(fullName, className));
+          jsonData[i].push(generatePassword(fullName, className));
+        }
+
+        const newSheet = XLSX.utils.aoa_to_sheet(jsonData);
+        const newWorkbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Students');
+        XLSX.writeFile(newWorkbook, 'Students_with_Logins.xlsx');
+        alert('Excel file generated successfully!');
+      };
+      reader.readAsArrayBuffer(fileInput.files[0]);
+    });
+  </script>
+</body>
+</html>
